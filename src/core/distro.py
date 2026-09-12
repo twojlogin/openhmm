@@ -87,7 +87,7 @@ BANNER = r"""
 ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══██║██║╚██╔╝██║██║╚██╔╝██║
 ╚██████╔╝██║     ███████╗██║ ╚████║██║  ██║██║ ╚═╝ ██║██║ ╚═╝ ██║
  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝
-        ThinkPad Przychodnia / Doctor — by Arek (H5N1)
+        OpenHMM — ThinkPad Przychodnia / Doctor — by Arek (H5N1)
               PL domyślnie • EN on board
 """
 
