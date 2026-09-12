@@ -1,0 +1,7 @@
+#!/bin/bash
+# status — CLI dla laika. Sam stawia venv i leci po polsku (lub --lang en).
+set -e
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/_ensure_env.sh"
+exec "$OPENHMM_PY" "$ROOT/src/core/cli.py" "$@"

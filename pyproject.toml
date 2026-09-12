@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openhmm"
+version = "0.2.0"
+description = "OpenHMM — darmowy dashboard sprzętowy dla Lenovo ThinkPad (DMI + hwmon + thinkfan + FRU/HMM)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Arek (H5N1) & contributors"}]
+dependencies = ["fastapi>=0.100", "uvicorn[standard]>=0.23"]
+[project.scripts]
+openhmm = "core.cli:main"
+openhmm-serve = "core.app:serve"
+
+[tool.setuptools.packages.find]
+where = ["src"]

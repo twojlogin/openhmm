@@ -1,0 +1,74 @@
+#!/bin/bash
+# dashboard — web dla laika. Sam stawia venv, wykrywa zajęty port.
+#
+# PORT-HEADER (czyta to instalator/skrypty):
+#   default_port=5066 ; port_range=5066-5076 ; bind=127.0.0.1
+#   Zasada: jeśli default zajęty przez NASZ dashboard (odpowiada /api/hardware
+#   z kluczem "machine") → kill starego i start na tym samym porcie.
+#   Jeśli zajęty przez OBCY proces → bierz następny wolny z zakresu i startuj tam.
+#   Nadpisanie: OPENHMM_PORT=XXXX ./dashboard
+set -e
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/_ensure_env.sh"
+
+BIND="127.0.0.1"
+WANT="${OPENHMM_PORT:-5066}"
+END_PORT=5076
+
+port_listening() { # $1=port → 0 jeśli coś słucha
+  (command -v ss >/dev/null && ss -ltn 2>/dev/null | grep -qE "[:.]$1[[:space:]]") \
+  || (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null
+}
+
+is_ours() { # $1=port → 0 jeśli to nasz OpenHMM (api odpowiada z "machine")
+  local body
+  body="$(curl -sm2 "http://127.0.0.1:$1/api/hardware" 2>/dev/null)" || return 1
+  [[ "$body" == *'"machine"'* ]]
+}
+
+kill_ours() { # $1=port → zabij procesy uvicorn/openhmm trzymające port
+  local pids=""
+  if command -v ss >/dev/null 2>&1; then
+    pids="$(ss -ltnp 2>/dev/null | grep -E "[:.]$1[[:space:]]" | grep -oP 'pid=\K[0-9]+' | sort -u || true)"
+  fi
+  if [ -z "$pids" ] && command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "$1"/tcp 2>/dev/null || true)"
+  fi
+  if [ -z "$pids" ]; then
+    pids="$(pgrep -f 'uvicorn.*app:app' || true)"
+  fi
+  for p in $pids; do
+    # zabij tylko jeśli to faktycznie nasz stack (uvicorn/openhmm), nie obcy serwer
+    if tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -qE 'uvicorn|openhmm|src.core.app|src/core/app'; then
+      echo "[*] Ubijam stary dashboard (pid $p) na porcie $1..."
+      kill "$p" 2>/dev/null || true
+    fi
+  done
+  for _ in $(seq 1 25); do
+    port_listening "$1" || return 0
+    sleep 0.2
+  done
+  return 1
+}
+
+PORT="$WANT"
+if port_listening "$PORT"; then
+  if is_ours "$PORT"; then
+    echo "[*] Port $PORT zajęty przez nasz dashboard — restartuję go."
+    kill_ours "$PORT" || { echo "[!] Nie udało się zwolnić $PORT"; exit 1; }
+  else
+    echo "[*] Port $PORT zajęty przez obcy program — szukam wolnego..."
+    FOUND=""
+    for p in $(seq "$WANT" "$END_PORT"); do
+      if ! port_listening "$p"; then FOUND="$p"; break; fi
+    done
+    if [ -z "$FOUND" ]; then echo "[!] Brak wolnego portu w $WANT-$END_PORT"; exit 1; fi
+    PORT="$FOUND"
+    echo "[*] Używam portu $PORT zamiast $WANT."
+  fi
+fi
+
+echo "[*] Dashboard: http://$BIND:$PORT  (Ctrl+C żeby zatrzymać)"
+cd "$ROOT/src/core"
+exec "$OPENHMM_PY" -m uvicorn app:app --host "$BIND" --port "$PORT"

@@ -1,0 +1,47 @@
+{
+  "ThinkPad T440p": {
+    "hmm_pdf": "https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/t440p_hmm_en_sp40a25362_01.pdf",
+    "parts": {
+      "fan": {"fru": "04X3916", "desc_pl": "Wentylator z radiatorem (discrete)", "steps": ["Odłącz zasilacz i baterię", "Odkręć 2 śruby pokrywy RAM/HDD", "Zdejmij pokrywę", "Odłącz kabel wentylatora od płyty", "Odkręć 7 śrub radiatora w kolejności 7->1", "Podnieś radiator z wentylatorem"]},
+      "keyboard_backlight": {"fru": "04X0139", "desc_pl": "Klawiatura podświetlana PL", "steps": ["Wyłącz laptop, wyjmij baterię", "Odkręć 2 śruby klawiatury od spodu (ikonka klawiatury)", "Podważ klawiaturę od góry, odepnij taśmę ZIF", "Załóż nową, zapnij taśmę"]},
+      "display_ips": {"fru": "04X0592", "desc_pl": "Matryca 14\" HD+ IPS 1600x900", "steps": ["Zdejmij ramkę (bezel) zaczynając od dołu", "Odkręć 4 śruby matrycy", "Odepnij kabel LVDS/eDP", "Przełóż zawiasy i kamerę"]},
+      "battery_9cell": {"fru": "45N1161", "desc_pl": "Bateria 9-cell 99Wh", "steps": ["Przesuń oba zatrzaski, wysuń baterię"]},
+      "bottom_cover": {"fru": "04X3908", "desc_pl": "Dolna pokrywa serwisowa", "steps": ["Odkręć 2 śruby, zsuń pokrywę"]},
+      "trackpoint_caps": {"fru": "04X5396", "desc_pl": "Nakładki TrackPoint (soft dome)", "steps": ["Ściągnij starą, nałóż nową"]}
+    }
+  },
+  "ThinkPad T480": {
+    "hmm_pdf": "https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/t480_hmm_en_sp40m05219_02.pdf",
+    "parts": {
+      "battery_internal": {"fru": "01AV489", "desc_pl": "Bateria wewnętrzna 24Wh", "steps": ["Wyłącz, odepnij zasilacz", "Odkręć 8 śrub spodu (Torx)", "Podważ spód kostką", "Odepnij złącze baterii wewnętrznej", "Odkręć 2 śruby baterii"]},
+      "battery_external": {"fru": "01AV490", "desc_pl": "Bateria zewnętrzna 24Wh PowerBridge", "steps": ["Przesuń zatrzask, wysuń"]},
+      "fan": {"fru": "01YR457", "desc_pl": "Wentylator + radiator", "steps": ["Zdejmij spód", "Odepnij baterie", "Odepnij kabel wentylatora", "Odkręć radiator 4 śruby"]},
+      "display_fhd": {"fru": "01YR500", "desc_pl": "Matryca 14\" FHD IPS", "steps": ["Zdejmij bezel", "Odkręć 4 śruby", "Odepnij eDP"]},
+      "keyboard_backlight": {"fru": "01YP300", "desc_pl": "Klawiatura podświetlana", "steps": ["Zdejmij spód", "Odepnij baterie", "Odkręć 6 śrub klawiatury od środka", "Wypchnij klawiaturę od wewnątrz"]}
+    }
+  },
+  "ThinkPad T14 Gen 1": {
+    "hmm_pdf": "https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/t14_gen1_hmm_en.pdf",
+    "parts": {
+      "battery": {"fru": "5B10W139", "desc_pl": "Bateria 50Wh", "steps": ["Odkręć spód 7 śrub", "Odepnij złącze baterii", "Odkręć 3 śruby baterii"]},
+      "fan": {"fru": "5H40S199", "desc_pl": "Wentylator", "steps": ["Zdejmij spód", "Odepnij baterię", "Odepnij kabel wentylatora", "Odkręć 4 śruby"]},
+      "ssd_heatsink": {"fru": "5H40S200", "desc_pl": "Radiator SSD M.2", "steps": ["Zdejmij spód", "Odkręć 1 śrubę radiatora SSD"]}
+    }
+  },
+  "ThinkPad X1 Carbon Gen 6": {
+    "hmm_pdf": "https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/x1_carbon_gen6_hmm_en.pdf",
+    "parts": {
+      "battery": {"fru": "01AV430", "desc_pl": "Bateria 57Wh", "steps": ["Odkręć 5 śrub spodu", "Odepnij baterię", "Odkręć 6 śrub baterii"]},
+      "fan_left": {"fru": "01YR433", "desc_pl": "Wentylator lewy", "steps": ["Zdejmij spód", "Odepnij baterię", "Odepnij kabel", "Odkręć 4 śruby"]},
+      "display_wqhd": {"fru": "01YN159", "desc_pl": "Matryca 14\" WQHD", "steps": ["Serwis tylko cały top cover — matryca klejona, ostrożnie z kablem eDP i antenami"]}
+    }
+  },
+  "ThinkPad X230": {
+    "hmm_pdf": "https://download.lenovo.com/ibmdl/pub/pc/pccbbs/mobiles_pdf/x230_hmm_en_0b48666_01.pdf",
+    "parts": {
+      "keyboard_classic": {"fru": "04W1300", "desc_pl": "Klawiatura klasyczna 7-rzędowa", "steps": ["Odkręć 2 śruby od spodu", "Podważ, odepnij taśmę"]},
+      "fan": {"fru": "04W3262", "desc_pl": "Wentylator", "steps": ["Zdejmij klawiaturę i palmrest", "Odepnij kabel", "Odkręć 3 śruby radiatora"]},
+      "display_ips": {"fru": "04W3917", "desc_pl": "Matryca 12.5\" IPS", "steps": ["Zdejmij bezel", "Odkręć 4 śruby", "Odepnij LVDS"]}
+    }
+  }
+}
