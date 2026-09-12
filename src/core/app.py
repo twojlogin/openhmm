@@ -129,7 +129,7 @@ async function loadSec(){
   try{
     let r = await fetch('/api/security'); let d = await r.json();
     let out = '';
-    for (const k of Object.keys(d)) out += (d[k].ok ? '[OK] ' : '[WARN] ') + k + '\n' + d[k].output.slice(0,4000) + '\n\n';
+    for (const k of Object.keys(d)) out += (d[k].ok ? '[OK] ' : '[WARN] ') + k + '\\n' + d[k].output.slice(0,4000) + '\\n\\n';
     document.getElementById('sec-info').textContent = out;
   }catch(e){ document.getElementById('sec-info').textContent = 'ERR ' + e; }
 }
