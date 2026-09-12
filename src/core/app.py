@@ -70,18 +70,22 @@ def get_dashboard():
 <html lang="pl">
 <head><meta charset="UTF-8"><title>OpenHMM — ThinkPad Przychodnia</title>
 <style>
-body{background:#000;color:#0f0;font-family:'Courier New',monospace;padding:20px}
-h1{text-shadow:0 0 10px #0f0}
-.box{border:1px solid #0f0;padding:15px;margin-bottom:15px;background:#050505}
-button{background:#0f0;color:#000;border:0;padding:8px 16px;font-weight:bold;cursor:pointer;margin-right:8px}
-#langbtn{background:#111;color:#0f0;border:1px solid #0f0}
-pre{background:#060606;border:1px solid #1a1a1a;padding:8px;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap}
-.tabs button{background:#111;color:#0f0;border:1px solid #0f0}
-.tabs button.active{background:#0f0;color:#000}
+:root{--bg:#000;--fg:#7dff7d;--bright:#c6ffc6;--box:#0a0f0a;--pre:#060906;--bd:#2a5a2a;--btn:#7dff7d;--btnfg:#000}
+body.light{--bg:#f4f6f4;--fg:#0d3b0d;--bright:#000;--box:#fff;--pre:#eef3ee;--bd:#9dbf9d;--btn:#0d5c0d;--btnfg:#fff}
+body{background:var(--bg);color:var(--fg);font-family:'Courier New',monospace;padding:20px;font-size:16px;line-height:1.65;max-width:1100px;margin:0 auto}
+h1{color:var(--bright);font-size:26px;letter-spacing:1px}
+h3{color:var(--bright);font-size:19px}
+.box{border:1px solid var(--bd);padding:15px;margin-bottom:15px;background:var(--box);border-radius:6px}
+button{background:var(--btn);color:var(--btnfg);border:0;padding:10px 18px;font-weight:bold;font-size:15px;cursor:pointer;margin:0 8px 8px 0;border-radius:4px}
+#langbtn,#themebtn{background:transparent;color:var(--fg);border:1px solid var(--bd)}
+pre{background:var(--pre);border:1px solid var(--bd);padding:12px;max-height:340px;overflow:auto;font-size:14px;line-height:1.7;white-space:pre-wrap;color:var(--fg)}
+.tabs button{background:transparent;color:var(--fg);border:1px solid var(--bd)}
+.tabs button.active{background:var(--btn);color:var(--btnfg)}
+.small{font-size:13px;opacity:.85}
 </style></head>
 <body>
 <h1 id="title">OpenHMM — ThinkPad Przychodnia</h1>
-<div><span id="subtitle"></span> <button id="langbtn" onclick="toggleLang()">EN</button></div>
+<div><span id="subtitle"></span> <button id="langbtn" onclick="toggleLang()">EN</button><button id="themebtn" onclick="toggleTheme()" title="Jasny / ciemny">☀/☾</button> <button onclick="fontSize(1)" title="Większa czcionka">A+</button><button onclick="fontSize(-1)" title="Mniejsza czcionka">A−</button></div>
 <p><button id="checkbtn" onclick="updateStats()">Sprawdź mój komputer</button></p>
 <div class="tabs"><button id="t1" class="active" onclick="tab('hw')">Sprzęt</button><button id="t2" onclick="tab('fru')">Naprawa (FRU/HMM)</button><button id="t3" onclick="tab('help')">Pomoc</button><button id="t4" onclick="tab('sec')">Bezpieczeństwo</button></div>
 <div class="box" id="hw">
@@ -115,6 +119,12 @@ async function loadLang(){
   document.getElementById('sec-note').textContent = L.sec_note || '';
 }
 function toggleLang(){ lang = (lang === 'pl' ? 'en' : 'pl'); localStorage.setItem('openhmm-lang', lang); loadLang().then(updateStats); }
+function toggleTheme(){ document.body.classList.toggle('light'); localStorage.setItem('openhmm-theme', document.body.classList.contains('light') ? 'light' : 'dark'); }
+function fontSize(d){ const b = document.body; const cur = parseFloat(getComputedStyle(b).fontSize) || 16; b.style.fontSize = Math.min(22, Math.max(13, cur + d)) + 'px'; localStorage.setItem('openhmm-fs', b.style.fontSize); }
+(function initView(){
+  if (localStorage.getItem('openhmm-theme') === 'light') document.body.classList.add('light');
+  const fs = localStorage.getItem('openhmm-fs'); if (fs) document.body.style.fontSize = fs;
+})();
 function tab(w){
   for (const id of ['hw','fru','help','sec']) document.getElementById(id).style.display = id === w ? 'block' : 'none';
   document.getElementById('t1').className = w === 'hw' ? 'active' : '';

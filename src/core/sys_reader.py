@@ -197,6 +197,10 @@ def scan_hardware_sensors() -> dict:
                 try:
                     with open(t_in, "r") as f:
                         val = int(f.read().strip()) / 1000.0
+                    # Kernel 7.x: thinkpad_acpi wystawia nieistniejące czujniki jako 0.
+                    # Działający laptop nigdy nie ma 0.0°C — to brak czujnika, nie dana.
+                    if val == 0.0:
+                        continue
                     temp_data[label] = round(val, 1)
                 except Exception:
                     continue
