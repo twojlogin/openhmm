@@ -25,8 +25,13 @@ def api_lang(lang: str):
 @app.get("/api/hardware")
 def get_hardware_status():
     d = sys_reader.get_all()
+    try:
+        import distro as _distro
+    except ImportError:
+        from src.core import distro as _distro
     return {"machine": d["machine"], "sensors": d["sensors"], "fan": d["fan"],
-            "battery": d["battery"], "cpu": d["cpu"], "memory": d["memory"]}
+            "battery": d["battery"], "cpu": d["cpu"], "memory": d["memory"],
+            "distro": _distro.detect()}
 
 @app.get("/api/fru/{model}")
 def api_fru(model: str):

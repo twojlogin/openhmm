@@ -30,7 +30,12 @@ def main():
                     help="Dołącz read-only raporty security-rocket (preflight/system/report). Nic nie zmienia w systemie.")
     a = ap.parse_args()
     L = load_lang(a.lang)
+    import distro as _distro
+    print(_distro.BANNER)
+    di = _distro.detect()
+    print(f"Distro: {di['name']} → menedżer: {di['pkg_manager']} ({di['install_cmd']}) | firewall: {di['firewall']}")
     d = sys_reader.get_all()
+    d["distro"] = di
     m = d["machine"]
 
     sup = L.get("supported", "wspierany") if m["supported"] else L.get("unsupported", "niewspierany")

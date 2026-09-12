@@ -18,8 +18,16 @@ if need_python; then
     sudo dnf install -y python3 python3-pip
   elif command -v pacman >/dev/null 2>&1; then
     sudo pacman -Sy --noconfirm python python-pip
+  elif command -v zypper >/dev/null 2>&1; then
+    sudo zypper install -y python3 python3-pip
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add python3 py3-pip py3-venv
+  elif command -v eopkg >/dev/null 2>&1; then
+    sudo eopkg install -y python3 pip
+  elif command -v xbps-install >/dev/null 2>&1; then
+    sudo xbps-install -y python3 pip
   else
-    echo "[!] Zainstaluj ręcznie Python>=3.10 i wróć."; exit 1
+    echo "[!] Nie znam Twojego menedżera pakietów. Zainstaluj ręcznie Python>=3.10 + venv/pip i wróć."; exit 1
   fi
 fi
 

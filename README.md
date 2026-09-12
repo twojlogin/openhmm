@@ -1,5 +1,7 @@
 # OpenHMM — ThinkPad Przychodnia / ThinkPad Doctor
 
+![demo](demo.gif)
+
 Masz starego ThinkPada i Linuxa (Mint / Ubuntu)? Zacznij tutaj.
 
 **Co to jest:** darmowy, lokalny panel który mówi Ci wprost co boli Twój komputer —
