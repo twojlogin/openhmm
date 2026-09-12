@@ -28,3 +28,11 @@ stan thinkfan, baterię %, CPU/RAM + FRU i kroki demontażu z oryginalnego HMM L
 > (ten folder) niczego nie zmienia, tylko czyta.
 
 EN version: see `README.en.md`. Domyślny język: **polski** (`--lang en` / przycisk EN w web).
+
+## Klimat
+
+Projekt zrodzony na ThinkPadzie T440p, w duchu zasady: **wolność to otwarty kod.**
+Proroctwo: https://technoporada.github.io/images/JABADU/przepowiednia.html
+
+A gdy AI odwali — zapisujemy dowód, nie obrażamy się na pamięć:
+`../REJESTR-HALUCYNACJI/` (jeden incydent = jeden plik + wpis w indeksie).
