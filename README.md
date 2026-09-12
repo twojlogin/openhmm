@@ -1,5 +1,9 @@
 # OpenHMM — ThinkPad Przychodnia / ThinkPad Doctor
 
+> **Kamień węgielny:** ten projekt jest kontynuacją sesji Muse Spark 1.2
+> z 2025-09-05 (12h+ z Arkiem, pamiętnik: `07_AI_EKSPERYMENTY/MuseSpark_pamietnik/`).
+> Model nie pamięta poprzedniej sesji — pamięta człowiek. Ślad został, robota trwa.
+
 ![demo](demo.gif)
 
 Masz starego ThinkPada i Linuxa (Mint / Ubuntu)? Zacznij tutaj.
