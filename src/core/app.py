@@ -64,9 +64,9 @@ def api_security():
         from src.core import sec_bridge
     return JSONResponse(sec_bridge.run_all())
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def get_dashboard():
-    return """<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="pl">
 <head><meta charset="UTF-8"><title>OpenHMM — ThinkPad Przychodnia</title>
 <style>
@@ -154,6 +154,8 @@ async function updateStats(){
 }
 setInterval(updateStats, 5000); updateStats();
 </script></body></html>"""
+    # Bez tego przeglądarka potrafi trzymać starą wersję strony (bez zakładek)
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-store, max-age=0"})
 
 def serve():
     import uvicorn
