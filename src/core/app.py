@@ -56,6 +56,14 @@ def api_readme(lang: str):
                 return JSONResponse({"error": str(e)})
     return JSONResponse({"error": "README not found"})
 
+@app.get("/api/inventory")
+def api_inventory():
+    try:
+        import sys_reader as _sr
+    except ImportError:
+        from src.core import sys_reader as _sr
+    return JSONResponse(_sr.get_inventory())
+
 @app.get("/api/security")
 def api_security():
     try:
@@ -93,6 +101,7 @@ pre{background:var(--pre);border:1px solid var(--bd);padding:12px;max-height:340
 <div class="box"><h3 id="h-sens"></h3><pre id="sensor-info"></pre></div>
 <div class="box"><h3 id="h-fan"></h3><pre id="fan-info"></pre></div>
 <div class="box"><h3 id="h-bat"></h3><pre id="bat-info"></pre></div>
+<div class="box"><h3 id="h-inv">Inwentaryzacja</h3><button onclick="loadInv()">Pokaż pełny sprzęt</button><pre id="inv-info" style="max-height:500px">Kliknij żeby załadować (GPU/dyski/RAM/sieć/USB/monitory).</pre></div>
 </div>
 <div class="box" id="fru" style="display:none"><h3>FRU / HMM</h3><pre id="fru-info"></pre></div>
 <div class="box" id="help" style="display:none"><h3 id="h-help"></h3><pre id="help-info" style="max-height:500px"></pre></div>
@@ -142,6 +151,13 @@ async function loadSec(){
     for (const k of Object.keys(d)) out += (d[k].ok ? '[OK] ' : '[WARN] ') + k + '\\n' + d[k].output.slice(0,4000) + '\\n\\n';
     document.getElementById('sec-info').textContent = out;
   }catch(e){ document.getElementById('sec-info').textContent = 'ERR ' + e; }
+}
+async function loadInv(){
+  document.getElementById('inv-info').textContent = '...';
+  try{
+    let r = await fetch('/api/inventory'); let d = await r.json();
+    document.getElementById('inv-info').textContent = JSON.stringify(d, null, 2);
+  }catch(e){ document.getElementById('inv-info').textContent = 'ERR ' + e; }
 }
 async function loadHelp(){
   try{

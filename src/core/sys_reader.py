@@ -322,6 +322,157 @@ def get_memory_info() -> dict:
         pass
     return info
 
+def _sh(cmd: str, timeout: int = 8) -> str:
+    """Uruchom komendę, zwróć stdout (pusto gdy brak komendy/błąd)."""
+    import subprocess
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip()
+    except Exception:
+        return ""
+
+
+def get_dmi_full() -> dict:
+    """Pełne DMI: serial, UUID, chassis, rodzina, płyta. (Serial/UUID tylko dla root lub gdy kernel udostępnia.)"""
+    return {
+        "sys_vendor": read_dmi_file("/sys/class/dmi/id/sys_vendor"),
+        "product_name": read_dmi_file("/sys/class/dmi/id/product_name"),
+        "product_family": read_dmi_file("/sys/class/dmi/id/product_family"),
+        "product_serial": read_dmi_file("/sys/class/dmi/id/product_serial"),
+        "product_uuid": read_dmi_file("/sys/class/dmi/id/product_uuid"),
+        "board_vendor": read_dmi_file("/sys/class/dmi/id/board_vendor"),
+        "board_name": read_dmi_file("/sys/class/dmi/id/board_name"),
+        "board_serial": read_dmi_file("/sys/class/dmi/id/board_serial"),
+        "chassis_vendor": read_dmi_file("/sys/class/dmi/id/chassis_vendor"),
+        "chassis_type": read_dmi_file("/sys/class/dmi/id/chassis_type"),
+        "bios_vendor": read_dmi_file("/sys/class/dmi/id/bios_vendor"),
+        "bios_version": read_dmi_file("/sys/class/dmi/id/bios_version"),
+        "bios_date": read_dmi_file("/sys/class/dmi/id/bios_date"),
+        "ec_firmware": read_dmi_file("/sys/class/dmi/id/ec_firmware_release"),
+    }
+
+
+def get_pci_devices() -> dict:
+    """VGA/GPU, audio, sieć, reszta kontrolerów z lspci."""
+    out = _sh("lspci -nn 2>/dev/null")
+    devs = {"gpu": [], "audio": [], "network": [], "other": []}
+    if not out:
+        return devs
+    for line in out.splitlines():
+        low = line.lower()
+        if "vga" in low or "3d controller" in low or "display controller" in low:
+            devs["gpu"].append(line.strip())
+        elif "audio" in low:
+            devs["audio"].append(line.strip())
+        elif "network controller" in low or "ethernet controller" in low:
+            devs["network"].append(line.strip())
+        elif len(devs["other"]) < 40:
+            devs["other"].append(line.strip())
+    return devs
+
+
+def get_disks() -> list:
+    """Dyski z lsblk (JSON gdy się da, tekstowo w fallbacku)."""
+    import json as _json
+    out = _sh("lsblk -J -o NAME,SIZE,TYPE,MODEL,SERIAL,MOUNTPOINT 2>/dev/null")
+    if out:
+        try:
+            return _json.loads(out).get("blockdevices", [])
+        except Exception:
+            pass
+    out = _sh("lsblk -o NAME,SIZE,TYPE,MODEL,MOUNTPOINT 2>/dev/null")
+    return [{"raw": out}] if out else []
+
+
+def get_ram_sticks() -> dict:
+    """Kości RAM: dmidecode gdy root, inaczej podsumowanie z meminfo."""
+    out = _sh("dmidecode -t memory 2>/dev/null | grep -E 'Size:|Type:|Speed:|Manufacturer:|Part Number:|Locator:' 2>/dev/null")
+    if out and "No SMBIOS" not in out:
+        sticks, cur = [], {}
+        for line in out.splitlines():
+            if ":" not in line:
+                continue
+            k, v = [x.strip() for x in line.split(":", 1)]
+            if k == "Size" and v.startswith("No"):
+                continue
+            cur[k] = v
+            if k == "Part Number":
+                sticks.append(cur)
+                cur = {}
+        if sticks:
+            return {"method": "dmidecode", "sticks": sticks}
+    total = read_dmi_file("/proc/meminfo").splitlines()
+    mem_total = next((l for l in total if l.startswith("MemTotal:")), "")
+    return {"method": "meminfo-fallback",
+            "note": "dmidecode wymaga roota — pełne kości po: sudo dmidecode -t memory",
+            "mem_total": mem_total}
+
+
+def get_net_ifaces() -> dict:
+    """Interfejsy sieciowe: stan, MAC, IP, prędkość."""
+    ifaces = {}
+    for path in glob.glob("/sys/class/net/*"):
+        name = os.path.basename(path)
+        if name == "lo":
+            continue
+        state = read_dmi_file(os.path.join(path, "operstate"))
+        mac = read_dmi_file(os.path.join(path, "address"))
+        speed = read_dmi_file(os.path.join(path, "speed"))
+        uevent = read_dmi_file(os.path.join(path, "device/uevent"))
+        driver = ""
+        for line in uevent.splitlines():
+            if line.startswith("DRIVER="):
+                driver = line.split("=", 1)[1]
+        ips = _sh(f"ip -o -4 addr show {name} 2>/dev/null | awk '{{print $4}}'")
+        ifaces[name] = {"state": state, "mac": mac,
+                        "speed_mbps": speed if speed else "?",
+                        "driver": driver, "ipv4": ips.split()}
+    return ifaces
+
+
+def get_usb_devices() -> list:
+    """Urządzenia USB z lsusb."""
+    out = _sh("lsusb 2>/dev/null")
+    return out.splitlines() if out else []
+
+
+def get_displays() -> dict:
+    """Monitory z xrandr + stan klapy."""
+    lid = ""
+    for p in glob.glob("/proc/acpi/button/lid/*/state"):
+        lid = read_dmi_file(p)
+        break
+    out = _sh("xrandr --query 2>/dev/null | grep -E ' connected| primary'")
+    connected = [l.strip() for l in out.splitlines()] if out else []
+    return {"lid": lid, "connected": connected,
+            "docked": bool(lid and "closed" in lid.lower() and len(connected) > 1)}
+
+
+def get_audio_cards() -> list:
+    """Karty dźwiękowe z /proc/asound/cards."""
+    cards = []
+    raw = read_dmi_file("/proc/asound/cards")
+    for line in raw.splitlines():
+        line = line.strip()
+        if line and line[0].isdigit():
+            cards.append(line)
+    return cards
+
+
+def get_inventory() -> dict:
+    """Pełna inwentaryzacja sprzętu — do CLI --full i dashboardu."""
+    return {
+        "dmi": get_dmi_full(),
+        "pci": get_pci_devices(),
+        "disks": get_disks(),
+        "ram": get_ram_sticks(),
+        "net": get_net_ifaces(),
+        "usb": get_usb_devices(),
+        "displays": get_displays(),
+        "audio": get_audio_cards(),
+    }
+
+
 def get_all() -> dict:
     """
     One-shot: everything in one dict for API/CLI.

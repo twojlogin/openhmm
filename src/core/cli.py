@@ -28,6 +28,8 @@ def main():
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--sec", action="store_true",
                     help="Dołącz read-only raporty security-rocket (preflight/system/report). Nic nie zmienia w systemie.")
+    ap.add_argument("--full", action="store_true",
+                    help="Pełna inwentaryzacja sprzętu (GPU/dyski/RAM/sieć/USB/monitory/audio/DMI).")
     a = ap.parse_args()
     L = load_lang(a.lang)
     import distro as _distro
@@ -68,6 +70,31 @@ def main():
             print(f"\n[{mark} {key}]")
             print(res["output"][:3000])
         d["security_note"] = "read-only bridge; modifying scripts are blocked"
+    if a.full:
+        inv = sys_reader.get_inventory()
+        d["inventory"] = inv
+        print(f"\n-- INWENTARYZACJA --")
+        print(f"DMI: {inv['dmi']['sys_vendor']} {inv['dmi']['product_name']} | płyta: {inv['dmi']['board_name']} | BIOS: {inv['dmi']['bios_version']}")
+        print("GPU:")
+        for g in inv["pci"]["gpu"]:
+            print(f"  {g}")
+        print("Dyski:")
+        for disk in inv["disks"]:
+            if isinstance(disk, dict) and "name" in disk:
+                print(f"  {disk['name']}: {disk.get('size','?')} {disk.get('model','?')} [{disk.get('type','?')}]")
+        print(f"RAM: {inv['ram'].get('mem_total','?')} (metoda: {inv['ram'].get('method','?')})")
+        print("Sieć:")
+        for name, ni in inv["net"].items():
+            print(f"  {name}: {ni['state']} {ni['driver']} {','.join(ni['ipv4']) or 'brak IP'}")
+        print(f"USB: {len(inv['usb'])} urządzeń")
+        for u in inv["usb"][:12]:
+            print(f"  {u}")
+        print(f"Ekran: {inv['displays']['lid']} | docked={inv['displays']['docked']}")
+        for c in inv["displays"]["connected"]:
+            print(f"  {c}")
+        print("Audio:")
+        for acard in inv["audio"]:
+            print(f"  {acard}")
     if a.json:
         print(json.dumps(d, indent=2, ensure_ascii=False))
 
