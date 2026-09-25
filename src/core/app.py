@@ -64,6 +64,14 @@ def api_inventory():
         from src.core import sys_reader as _sr
     return JSONResponse(_sr.get_inventory())
 
+@app.get("/api/health")
+def api_health():
+    try:
+        import sys_reader as _sr
+    except ImportError:
+        from src.core import sys_reader as _sr
+    return JSONResponse(_sr.assess_health(_sr.get_all()))
+
 @app.get("/api/security")
 def api_security():
     try:

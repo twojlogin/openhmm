@@ -30,6 +30,8 @@ def main():
                     help="Dołącz read-only raporty security-rocket (preflight/system/report). Nic nie zmienia w systemie.")
     ap.add_argument("--full", action="store_true",
                     help="Pełna inwentaryzacja sprzętu (GPU/dyski/RAM/sieć/USB/monitory/audio/DMI).")
+    ap.add_argument("--check", action="store_true",
+                    help="Tryb skryptowy: jednolinijkowy werdykt + exit code (0=ok, 1=warn, 2=crit).")
     a = ap.parse_args()
     L = load_lang(a.lang)
     import distro as _distro
@@ -59,6 +61,16 @@ def main():
     fan = d["fan"]
     print(f"\n-- {L.get('fan', 'Wentylator')}: {L.get('level','Poziom')}={fan['level']} {L.get('speed','Obroty')}={fan['speed']} RPM")
     print(L.get("fan_ok", "OK") if fan["enabled"] else L.get("fan_warn", "WARN"))
+    h = sys_reader.assess_health(d)
+    tmax_h = h["temp"]["max"]
+    print(f"\n-- HEALTH: {h['overall'].upper()} "
+          f"(temp={tmax_h if tmax_h is not None else '?'}C/{h['temp']['status']} "
+          f"fan={h['fan']['status']} wear={h['worst_wear_pct'] if h['worst_wear_pct'] is not None else '?'}%) --")
+    for bn, bi in h["batteries"].items():
+        print(f"  {bn}: wear={bi['wear_pct'] if bi['wear_pct'] is not None else '?'}% [{bi['status']}]")
+    if a.check:
+        print(f"CHECK: {h['overall']}")
+        raise SystemExit({"ok": 0, "warn": 1, "crit": 2, "unknown": 3}[h["overall"]])
     print(f"\n-- {L.get('battery', 'Bateria')} --")
     for bn, bi in d["battery"].items():
         print(f"  {bn}: {bi.get('capacity','?')}% status={bi.get('status','?')}")

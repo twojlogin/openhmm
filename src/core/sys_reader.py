@@ -45,13 +45,14 @@ THINKPAD_DMI_MAP = {
     "20CS": "ThinkPad T15 Gen 2", "20CT": "ThinkPad T15 Gen 2",
     "20CU": "ThinkPad T14 Gen 3", "20CV": "ThinkPad T14 Gen 3",
     # X-series
-    "20AL": "ThinkPad X240", "20AM": "ThinkPad X240",
+    # UWAGA: kody 4-znakowe MUSZĄ być unikalne w całym słowniku — duplikat
+    # cicho nadpisuje wcześniejszy wpis (tu kiedyś X/Yoga zabijały T-series).
+    # Nie dopisuj kodu który już istnieje niżej/wyżej bez weryfikacji z PSREF.
+    # Podejrzane wpisy usunięto; TODO: uzupełnić z https://psref.lenovo.com
+    "20AL": "ThinkPad X240",
     "20AO": "ThinkPad X240s",
     "20AP": "ThinkPad X250", "20AQ": "ThinkPad X250",
     "20AR": "ThinkPad X260", "20AS": "ThinkPad X260",
-    "20AT": "ThinkPad X270", "20AU": "ThinkPad X270",
-    "20AV": "ThinkPad X280", "20AW": "ThinkPad X280",
-    "20AX": "ThinkPad X390", "20AY": "ThinkPad X390",
     "20AZ": "ThinkPad X395", "20B0": "ThinkPad X395",
     "20B1": "ThinkPad X13 Gen 1", "20B2": "ThinkPad X13 Gen 1",
     "20B3": "ThinkPad X13 AMD Gen 1", "20B4": "ThinkPad X13 AMD Gen 1",
@@ -62,20 +63,9 @@ THINKPAD_DMI_MAP = {
     "20B9": "ThinkPad X1 Carbon Gen 5", "20BA": "ThinkPad X1 Carbon Gen 5",
     "20BB": "ThinkPad X1 Carbon Gen 6", "20BC": "ThinkPad X1 Carbon Gen 6",
     "20BD": "ThinkPad X1 Carbon Gen 7", "20BE": "ThinkPad X1 Carbon Gen 7",
-    "20BF": "ThinkPad X1 Carbon Gen 8", "20BG": "ThinkPad X1 Carbon Gen 8",
-    "20BH": "ThinkPad X1 Carbon Gen 9", "20BI": "ThinkPad X1 Carbon Gen 9",
-    "20BJ": "ThinkPad X1 Carbon Gen 10", "20BK": "ThinkPad X1 Carbon Gen 10",
-    "20BL": "ThinkPad X1 Carbon Gen 11", "20BM": "ThinkPad X1 Carbon Gen 11",
-    "20BN": "ThinkPad X1 Carbon Gen 12", "20BO": "ThinkPad X1 Carbon Gen 12",
-    # X1 Yoga
-    "20C0": "ThinkPad X1 Yoga Gen 1", "20C1": "ThinkPad X1 Yoga Gen 1",
-    "20C2": "ThinkPad X1 Yoga Gen 2", "20C3": "ThinkPad X1 Yoga Gen 2",
-    "20C4": "ThinkPad X1 Yoga Gen 3", "20C5": "ThinkPad X1 Yoga Gen 3",
-    "20C6": "ThinkPad X1 Yoga Gen 4", "20C7": "ThinkPad X1 Yoga Gen 4",
-    "20C8": "ThinkPad X1 Yoga Gen 5", "20C9": "ThinkPad X1 Yoga Gen 5",
-    "20CA": "ThinkPad X1 Yoga Gen 6", "20CB": "ThinkPad X1 Yoga Gen 6",
-    "20CC": "ThinkPad X1 Yoga Gen 7", "20CD": "ThinkPad X1 Yoga Gen 7",
-    "20CE": "ThinkPad X1 Yoga Gen 8", "20CF": "ThinkPad X1 Yoga Gen 8",
+    "20BI": "ThinkPad X1 Carbon Gen 9",
+    # Gen 8/10/11/12 i cała seria X1 Yoga miały tu kody kolidujące z T-series
+    # (20BF-20BO, 20C0-20CF) — usunięte, do uzupełnienia z PSREF.
     # W/P-series (mobile workstations)
     "20D0": "ThinkPad W540", "20D1": "ThinkPad W540",
     "20D2": "ThinkPad W541", "20D3": "ThinkPad W541",
@@ -471,6 +461,86 @@ def get_inventory() -> dict:
         "displays": get_displays(),
         "audio": get_audio_cards(),
     }
+
+
+# ── Warstwa health: czyste funkcje, bez I/O, w 100% testowalne mockami ──
+
+# Czujniki które realnie mówią o CPU (reszta to np. wifi/bateria i fałszuje alarm).
+CPU_SENSOR_HINTS = ("coretemp", "k10temp", "zenpower", "cpu_thermal", "package")
+
+
+def cpu_temps(sensors: dict) -> list:
+    """Same temperatury CPU. Fallback: wszystkie gdy brak dopasowania."""
+    picked = []
+    for name, s in (sensors or {}).items():
+        if any(h in name.lower() for h in CPU_SENSOR_HINTS):
+            picked.extend(s.get("temperatures", {}).values())
+    if not picked:
+        for s in (sensors or {}).values():
+            picked.extend(s.get("temperatures", {}).values())
+    return [float(v) for v in picked]
+
+
+def temp_status(tmax: float | None, warn: float = 85.0, crit: float = 95.0) -> str:
+    """ok | warn | crit | unknown — jedna funkcja, jeden próg, testowalna."""
+    if tmax is None:
+        return "unknown"
+    if tmax >= crit:
+        return "crit"
+    if tmax >= warn:
+        return "warn"
+    return "ok"
+
+
+def battery_wear(bat: dict) -> dict:
+    """Zużycie baterii z energy_full vs energy_full_design. Zwraca % lub None."""
+    try:
+        full = float(bat.get("energy_full", 0) or 0)
+        design = float(bat.get("energy_full_design", 0) or 0)
+        if full > 0 and design > 0:
+            return {"wear_pct": round((1 - full / design) * 100, 1),
+                    "health_pct": round(full / design * 100, 1)}
+    except (TypeError, ValueError):
+        pass
+    return {"wear_pct": None, "health_pct": None}
+
+
+def assess_health(data: dict | None = None) -> dict:
+    """Jedno wywołanie → cały werdykt: temp/fan/bateria. Do CLI exit-code i API."""
+    data = data if data is not None else get_all()
+    sensors = data.get("sensors", {})
+    cpus = cpu_temps(sensors)
+    tmax = max(cpus) if cpus else None
+    tstat = temp_status(tmax)
+    fan = data.get("fan", {})
+    fstat = "ok" if fan.get("enabled") else "warn"
+    bats = {}
+    worst_wear = None
+    for name, bat in (data.get("battery", {}) or {}).items():
+        w = battery_wear(bat)
+        cap = bat.get("capacity")
+        try:
+            cap = int(str(cap).rstrip("%")) if cap is not None else None
+        except (TypeError, ValueError):
+            cap = None
+        bstat = "unknown"
+        if w["wear_pct"] is not None:
+            bstat = "crit" if w["wear_pct"] >= 40 else "warn" if w["wear_pct"] >= 20 else "ok"
+        elif cap is not None:
+            bstat = "ok"
+        bats[name] = {**w, "capacity": cap, "status": bstat}
+        if w["wear_pct"] is not None and (worst_wear is None or w["wear_pct"] > worst_wear):
+            worst_wear = w["wear_pct"]
+    overall = "ok"
+    for s in [tstat, fstat] + [b["status"] for b in bats.values()]:
+        if s == "crit":
+            overall = "crit"
+            break
+        if s == "warn":
+            overall = "warn"
+    return {"overall": overall, "temp": {"max": tmax, "status": tstat},
+            "fan": {"status": fstat, "level": fan.get("level"), "speed": fan.get("speed")},
+            "batteries": bats, "worst_wear_pct": worst_wear}
 
 
 def get_all() -> dict:
