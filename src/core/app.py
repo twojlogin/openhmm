@@ -174,17 +174,25 @@ async function loadHelp(){
   }catch(e){ document.getElementById('help-info').textContent = 'ERR ' + e; }
 }
 async function updateStats(){
+  if (updateStats.busy) return;
+  updateStats.busy = true;
   await loadLang();
   try{
-    let r = await fetch('/api/hardware'); let d = await r.json();
+    let r = await fetch('/api/hardware'); if (!r.ok) throw new Error('HTTP ' + r.status);
+    let d = await r.json();
     let sup = d.machine.supported ? L.supported : L.unsupported;
-    document.getElementById('machine-info').innerHTML = '<b>'+L.device+':</b> '+d.machine.vendor+' - '+d.machine.model+' ['+d.machine.product_code+'] '+sup;
+    // textContent — DMI to dane z maszyny, nie HTML (XSS).
+    document.getElementById('machine-info').textContent =
+      L.device + ': ' + d.machine.vendor + ' - ' + d.machine.model +
+      ' [' + d.machine.product_code + '] ' + sup;
     document.getElementById('sensor-info').textContent = JSON.stringify(d.sensors, null, 2);
     document.getElementById('fan-info').textContent = L.level+': '+d.fan.level+' | '+L.speed+': '+d.fan.speed+' RPM';
     document.getElementById('bat-info').textContent = JSON.stringify(d.battery, null, 2);
     let f = await (await fetch('/api/fru/' + encodeURIComponent(d.machine.model))).json();
     document.getElementById('fru-info').textContent = JSON.stringify(f, null, 2);
-  }catch(e){ console.error(e); }
+  }catch(e){
+    document.getElementById('machine-info').textContent = 'ERR: ' + e + ' — czy dashboard żyje?';
+  }finally{ updateStats.busy = false; }
 }
 setInterval(updateStats, 5000); updateStats();
 </script></body></html>"""

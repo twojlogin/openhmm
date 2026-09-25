@@ -136,7 +136,10 @@ class TestAssessHealth(unittest.TestCase):
     def test_all_ok(self):
         h = sr.assess_health(self._data())
         self.assertEqual(h["overall"], "ok")
-        self.assertEqual(h["temp"], {"max": 60.0, "status": "ok"})
+        self.assertEqual(h["temp"]["max"], 60.0)
+        self.assertEqual(h["temp"]["status"], "ok")
+        # progi z kernela albo fallback — zawsze obecne i sensowne
+        self.assertLess(h["temp"]["warn_thr"], h["temp"]["crit_thr"])
 
     def test_hot_cpu_warn(self):
         d = self._data()
@@ -213,6 +216,72 @@ class TestHealthApi(unittest.TestCase):
                 proc.wait(timeout=5)
             except Exception:
                 proc.kill()
+
+
+class TestEffectiveThresholds(unittest.TestCase):
+    def test_from_kernel_limits(self):
+        s = {"coretemp": {"temperatures": {"Package id 0": 70.0},
+                          "limits": {"Package id 0": {"crit": 100.0, "max": 84.0}}}}
+        self.assertEqual(sr.effective_thresholds(s), (84.0, 100.0))
+
+    def test_fallback_when_no_limits(self):
+        s = {"coretemp": {"temperatures": {"Package id 0": 70.0}}}
+        self.assertEqual(sr.effective_thresholds(s), (85.0, 95.0))
+
+    def test_ignores_non_cpu_sensors(self):
+        s = {"iwlwifi_1": {"temperatures": {"t": 50.0},
+                           "limits": {"t": {"crit": 60.0, "max": 55.0}}}}
+        self.assertEqual(sr.effective_thresholds(s), (85.0, 95.0))
+
+    def test_takes_minimum(self):
+        s = {"coretemp": {"temperatures": {},
+                          "limits": {"a": {"crit": 100.0, "max": 90.0},
+                                     "b": {"crit": 100.0, "max": 84.0}}}}
+        self.assertEqual(sr.effective_thresholds(s), (84.0, 100.0))
+
+    def test_crit_never_below_warn(self):
+        s = {"coretemp": {"temperatures": {},
+                          "limits": {"a": {"crit": 80.0, "max": 90.0}}}}
+        w, c = sr.effective_thresholds(s)
+        self.assertLess(w, c)
+
+    def test_scan_reads_limits_mocked(self):
+        import builtins
+        hw = "/sys/class/hwmon/hwmon9"
+        files = {hw + "/name": "coretemp",
+                 hw + "/temp1_label": "Package id 0",
+                 hw + "/temp1_input": "84000",
+                 hw + "/temp1_crit": "100000",
+                 hw + "/temp1_max": "84000"}
+
+        def fake_glob(pattern):
+            if pattern == "/sys/class/hwmon/hwmon*":
+                return [hw]
+            if pattern == hw + "/temp*_input":
+                return [hw + "/temp1_input"]
+            return []
+
+        def fake_exists(p):
+            return p in files
+
+        def fake_open(p, *a, **k):
+            m = mock.mock_open(read_data=files[p])()
+            return m
+
+        with mock.patch("glob.glob", side_effect=fake_glob), \
+             mock.patch("os.path.exists", side_effect=fake_exists), \
+             mock.patch.object(builtins, "open", side_effect=fake_open):
+            sensors = sr.scan_hardware_sensors()
+        self.assertEqual(sensors["coretemp"]["temperatures"], {"Package id 0": 84.0})
+        self.assertEqual(sensors["coretemp"]["limits"],
+                         {"Package id 0": {"crit": 100.0, "max": 84.0}})
+
+
+class TestNoInnerHtml(unittest.TestCase):
+    def test_dashboard_has_no_innerhtml(self):
+        with open(os.path.join(CORE, "app.py"), encoding="utf-8") as f:
+            src = f.read()
+        self.assertNotIn("innerHTML", src)
 
 
 class TestSerialRedaction(unittest.TestCase):

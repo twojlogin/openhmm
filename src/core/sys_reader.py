@@ -178,6 +178,7 @@ def scan_hardware_sensors() -> dict:
                 sensor_name = f.read().strip()
 
             temp_data = {}
+            limit_data = {}
             for t_in in glob.glob(os.path.join(path, "temp*_input")):
                 label_file = t_in.replace("_input", "_label")
                 label = os.path.basename(t_in).replace("_input", "")
@@ -192,6 +193,19 @@ def scan_hardware_sensors() -> dict:
                     if val == 0.0:
                         continue
                     temp_data[label] = round(val, 1)
+                    # Prawdziwe progi z kernela (zamiast zgadywanych 85/95).
+                    lim = {}
+                    for suffix, key in (("_crit", "crit"), ("_max", "max"),
+                                        ("_emergency", "emergency")):
+                        lf = t_in.replace("_input", suffix)
+                        try:
+                            if os.path.exists(lf):
+                                with open(lf, "r") as f:
+                                    lim[key] = round(int(f.read().strip()) / 1000.0, 1)
+                        except Exception:
+                            continue
+                    if lim:
+                        limit_data[label] = lim
                 except Exception:
                     continue
 
@@ -212,6 +226,7 @@ def scan_hardware_sensors() -> dict:
             sensors[sensor_name] = {
                 "sys_path": path,
                 "temperatures": temp_data,
+                "limits": limit_data,
                 "fans": fan_data,
             }
         except Exception:
@@ -488,6 +503,26 @@ def cpu_temps(sensors: dict) -> list:
     return [float(v) for v in picked]
 
 
+def effective_thresholds(sensors: dict, fallback_warn: float = 85.0,
+                         fallback_crit: float = 95.0) -> tuple:
+    """Progi warn/crit z kernela (temp1_max → warn, temp1_crit → crit).
+    Bierze minimum z czujników CPU; gdy kernel milczy — stare 85/95."""
+    warns, crits = [], []
+    for name, s in (sensors or {}).items():
+        if any(h in name.lower() for h in CPU_SENSOR_HINTS):
+            for lim in (s.get("limits", {}) or {}).values():
+                if isinstance(lim, dict):
+                    if lim.get("max"):
+                        warns.append(float(lim["max"]))
+                    if lim.get("crit"):
+                        crits.append(float(lim["crit"]))
+    warn = min(warns) if warns else fallback_warn
+    crit = min(crits) if crits else fallback_crit
+    if crit <= warn:
+        crit = warn + 10.0
+    return (warn, crit)
+
+
 def temp_status(tmax: float | None, warn: float = 85.0, crit: float = 95.0) -> str:
     """ok | warn | crit | unknown — jedna funkcja, jeden próg, testowalna."""
     if tmax is None:
@@ -518,7 +553,8 @@ def assess_health(data: dict | None = None) -> dict:
     sensors = data.get("sensors", {})
     cpus = cpu_temps(sensors)
     tmax = max(cpus) if cpus else None
-    tstat = temp_status(tmax)
+    warn_thr, crit_thr = effective_thresholds(sensors)
+    tstat = temp_status(tmax, warn=warn_thr, crit=crit_thr)
     fan = data.get("fan", {})
     fstat = "ok" if fan.get("enabled") else "warn"
     bats = {}
@@ -545,7 +581,8 @@ def assess_health(data: dict | None = None) -> dict:
             break
         if s == "warn":
             overall = "warn"
-    return {"overall": overall, "temp": {"max": tmax, "status": tstat},
+    return {"overall": overall, "temp": {"max": tmax, "status": tstat,
+                                         "warn_thr": warn_thr, "crit_thr": crit_thr},
             "fan": {"status": fstat, "level": fan.get("level"), "speed": fan.get("speed")},
             "batteries": bats, "worst_wear_pct": worst_wear}
 
