@@ -327,12 +327,17 @@ def get_memory_info() -> dict:
         pass
     return info
 
-def _sh(cmd: str, timeout: int = 8) -> str:
-    """Uruchom komendę, zwróć stdout (pusto gdy brak komendy/błąd)."""
+def _run(argv: list, timeout: int = 8) -> str:
+    """Uruchom komendę BEZ shella (lista argv, stdin zamknięty).
+    Zwraca stdout (pusto gdy brak komendy / timeout / returncode != 0).
+    Żadnego shell=True — nazwa interfejsu czy model dysku nie wstrzyknie komendy."""
     import subprocess
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
-        return r.stdout.strip()
+        r = subprocess.run([str(a) for a in argv], capture_output=True,
+                           text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+        if r.returncode != 0:
+            return ""
+        return (r.stdout or "").strip()
     except Exception:
         return ""
 
@@ -365,7 +370,7 @@ def get_dmi_full(redact: bool = False) -> dict:
 
 def get_pci_devices() -> dict:
     """VGA/GPU, audio, sieć, reszta kontrolerów z lspci."""
-    out = _sh("lspci -nn 2>/dev/null")
+    out = _run(["lspci", "-nn"])
     devs = {"gpu": [], "audio": [], "network": [], "other": []}
     if not out:
         return devs
@@ -385,26 +390,40 @@ def get_pci_devices() -> dict:
 def get_disks() -> list:
     """Dyski z lsblk (JSON gdy się da, tekstowo w fallbacku)."""
     import json as _json
-    out = _sh("lsblk -J -o NAME,SIZE,TYPE,MODEL,SERIAL,MOUNTPOINT 2>/dev/null")
+    out = _run(["lsblk", "-J", "-o", "NAME,SIZE,TYPE,MODEL,SERIAL,MOUNTPOINT"])
     if out:
         try:
             return _json.loads(out).get("blockdevices", [])
         except Exception:
             pass
-    out = _sh("lsblk -o NAME,SIZE,TYPE,MODEL,MOUNTPOINT 2>/dev/null")
+    out = _run(["lsblk", "-o", "NAME,SIZE,TYPE,MODEL,MOUNTPOINT"])
     return [{"raw": out}] if out else []
 
 
 def get_ram_sticks() -> dict:
     """Kości RAM: dmidecode gdy root, inaczej podsumowanie z meminfo."""
-    out = _sh("dmidecode -t memory 2>/dev/null | grep -E 'Size:|Type:|Speed:|Manufacturer:|Part Number:|Locator:' 2>/dev/null")
+    import re as _re
+    want = _re.compile(r"^\s*(Size|Type|Speed|Manufacturer|Part Number|Locator)\s*:")
+    out = _run(["dmidecode", "-t", "memory"])
+    out = "\n".join(l for l in out.splitlines() if want.search(l)) if out else ""
     if out and "No SMBIOS" not in out:
-        sticks, cur = [], {}
+        sticks, cur, skip = [], {}, False
         for line in out.splitlines():
             if ":" not in line:
                 continue
             k, v = [x.strip() for x in line.split(":", 1)]
-            if k == "Size" and v.startswith("No"):
+            if k == "Size":
+                # nowy slot: sfinalizuj poprzedni, pusty slot pomiń w całości
+                # (stary kod robił `continue` bez resetu cur — pola poprzedniej
+                # kości wyciekały do następnej)
+                if cur.get("Part Number") and not skip:
+                    sticks.append(cur)
+                if v.startswith("No"):
+                    cur, skip = {}, True
+                else:
+                    cur, skip = {"Size": v}, False
+                continue
+            if skip:
                 continue
             cur[k] = v
             if k == "Part Number":
@@ -434,16 +453,20 @@ def get_net_ifaces() -> dict:
         for line in uevent.splitlines():
             if line.startswith("DRIVER="):
                 driver = line.split("=", 1)[1]
-        ips = _sh(f"ip -o -4 addr show {name} 2>/dev/null | awk '{{print $4}}'")
+        import re as _re2
+        if not _re2.match(r"^[A-Za-z0-9._-]+$", name):
+            continue
+        raw = _run(["ip", "-o", "-4", "addr", "show", name])
+        ips = [p.split()[3] for p in raw.splitlines() if len(p.split()) >= 4]
         ifaces[name] = {"state": state, "mac": mac,
                         "speed_mbps": speed if speed else "?",
-                        "driver": driver, "ipv4": ips.split()}
+                        "driver": driver, "ipv4": ips}
     return ifaces
 
 
 def get_usb_devices() -> list:
     """Urządzenia USB z lsusb."""
-    out = _sh("lsusb 2>/dev/null")
+    out = _run(["lsusb"])
     return out.splitlines() if out else []
 
 
@@ -453,8 +476,9 @@ def get_displays() -> dict:
     for p in glob.glob("/proc/acpi/button/lid/*/state"):
         lid = read_dmi_file(p)
         break
-    out = _sh("xrandr --query 2>/dev/null | grep -E ' connected| primary'")
-    connected = [l.strip() for l in out.splitlines()] if out else []
+    out = _run(["xrandr", "--query"])
+    connected = [l.strip() for l in out.splitlines()
+                 if out and (" connected" in l or " primary" in l)] if out else []
     return {"lid": lid, "connected": connected,
             "docked": bool(lid and "closed" in lid.lower() and len(connected) > 1)}
 

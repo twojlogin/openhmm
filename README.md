@@ -23,6 +23,15 @@ Bez kont, bez telemetrii, bez internetu. Tylko Python + Twój sprzęt.
 **Co dostaniesz:** model z DMI (np. `20AN → ThinkPad T440p`), temperatury z hwmon,
 stan thinkfan, baterię %, CPU/RAM + FRU i kroki demontażu z oryginalnego HMM Lenovo.
 
+**Zdrowie jednym rzutem (nowe):**
+```bash
+./status --check   # jedna linijka: CHECK: ok/warn/crit + kod wyjścia 0/1/2
+```
+`HEALTH` w zwykłym `./status` mówi też ile baterii realnie zostało
+(`wear%` — pojemność dziś vs fabryka). Progi temperatury bierze z kernela,
+nie z głowy. A w przeglądarce jest adres `http://localhost:5066/api/health`
+z tym samym werdyktem w formacie dla programów.
+
 > ⚠️ Osobny moduł hardeningu (`security-rocket`) zmienia SSH/UFW — najpierw
 > `preflight_check.sh`, miej fizyczny dostęp do maszyny. Dashboard sprzętowy
 > (ten folder) niczego nie zmienia, tylko czyta.

@@ -73,12 +73,18 @@ def api_health():
     return JSONResponse(_sr.assess_health(_sr.get_all()))
 
 @app.get("/api/security")
-def api_security():
+async def api_security():
+    # Równolegle na wątkach: 3x60s sekwencyjnie wieszało loop do 3 minut,
+    # teraz sufit to ~60s i serwer w międzyczasie odpowiada na inne requesty.
+    import asyncio
     try:
         import sec_bridge
     except ImportError:
         from src.core import sec_bridge
-    return JSONResponse(sec_bridge.run_all())
+    names = list(sec_bridge.READONLY_SCRIPTS)
+    results = await asyncio.gather(
+        *(asyncio.to_thread(sec_bridge.run_check, n, 60) for n in names))
+    return JSONResponse(dict(zip(names, results)))
 
 @app.get("/")
 def get_dashboard():

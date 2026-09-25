@@ -13,6 +13,14 @@ No accounts, no telemetry, no cloud. Just Python + your hardware.
 ./dashboard    # web: http://localhost:5066 (Hardware / Repair tabs)
 ```
 
+**One-line health (new):**
+```bash
+./status --check   # prints CHECK: ok/warn/crit, exit code 0/1/2 (script-friendly)
+```
+`HEALTH` in plain `./status` also shows real battery `wear%` (today vs factory
+capacity). Temperature limits come from the kernel, not guesswork.
+Same verdict as JSON: `http://localhost:5066/api/health`.
+
 Default language is **Polish** (this project is built by a Pole, for ThinkPad
 users first). Switch: `./status --lang en` or the EN button in the dashboard.
 Repair steps in `fru_db.json` are in Polish + link to the original Lenovo HMM PDF (EN).

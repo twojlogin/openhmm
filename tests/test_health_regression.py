@@ -277,6 +277,66 @@ class TestEffectiveThresholds(unittest.TestCase):
                          {"Package id 0": {"crit": 100.0, "max": 84.0}})
 
 
+class TestRunNoShell(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(sr._run(["echo", "hi"]), "hi")
+
+    def test_nonzero_returncode_gives_empty(self):
+        self.assertEqual(sr._run([sys.executable, "-c", "raise SystemExit(1)"]), "")
+
+    def test_missing_command_gives_empty(self):
+        self.assertEqual(sr._run(["definitely-no-such-cmd-xyz"]), "")
+
+    def test_no_shell_injection(self):
+        # gdyby był shell=True, średnik odpaliłby drugą komendę —
+        # tu ma wrócić dosłowny string z echa, nic więcej
+        out = sr._run(["echo", "; touch /tmp/pwned_by_test"])
+        self.assertIn(";", out)
+        self.assertFalse(os.path.exists("/tmp/pwned_by_test"))
+
+    def test_evil_iface_skipped(self):
+        with mock.patch("glob.glob", return_value=["/sys/class/net/;reboot",
+                                                   "/sys/class/net/eth0"]), \
+             mock.patch.object(sr, "read_dmi_file", return_value="x"), \
+             mock.patch.object(sr, "_run", return_value="") as m:
+            ifaces = sr.get_net_ifaces()
+        self.assertNotIn(";reboot", ifaces)
+        self.assertIn("eth0", ifaces)
+        for c in m.call_args_list:
+            self.assertIsInstance(c.args[0], list)  # argv, nigdy string do shella
+
+
+class TestRamEmptySlots(unittest.TestCase):
+    SAMPLE = """
+\tSize: 4096 MB
+\tType: DDR3
+\tSpeed: 1600 MT/s
+\tManufacturer: Samsung
+\tPart Number: M471B5173QH0-YK0
+\tLocator: ChannelA-DIMM0
+\tSize: No Module Installed
+\tType: Unknown
+\tSpeed: Unknown
+\tManufacturer: Not Specified
+\tPart Number: Not Specified
+\tLocator: ChannelB-DIMM0
+""".replace("\t", "  ")
+
+    def test_empty_slot_skipped_no_leak(self):
+        with mock.patch.object(sr, "_run", return_value=self.SAMPLE):
+            r = sr.get_ram_sticks()
+        self.assertEqual(r["method"], "dmidecode")
+        self.assertEqual(len(r["sticks"]), 1)
+        self.assertEqual(r["sticks"][0]["Part Number"], "M471B5173QH0-YK0")
+        self.assertEqual(r["sticks"][0]["Size"], "4096 MB")
+
+    def test_all_empty_falls_back(self):
+        sample = "  Size: No Module Installed\n  Type: Unknown\n"
+        with mock.patch.object(sr, "_run", return_value=sample):
+            r = sr.get_ram_sticks()
+        self.assertEqual(r["method"], "meminfo-fallback")
+
+
 class TestNoInnerHtml(unittest.TestCase):
     def test_dashboard_has_no_innerhtml(self):
         with open(os.path.join(CORE, "app.py"), encoding="utf-8") as f:
