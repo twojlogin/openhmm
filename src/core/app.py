@@ -57,12 +57,12 @@ def api_readme(lang: str):
     return JSONResponse({"error": "README not found"})
 
 @app.get("/api/inventory")
-def api_inventory():
+def api_inventory(show_serial: bool = False):
     try:
         import sys_reader as _sr
     except ImportError:
         from src.core import sys_reader as _sr
-    return JSONResponse(_sr.get_inventory())
+    return JSONResponse(_sr.get_inventory(redact=not show_serial))
 
 @app.get("/api/health")
 def api_health():

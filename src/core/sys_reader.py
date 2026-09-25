@@ -322,9 +322,10 @@ def _sh(cmd: str, timeout: int = 8) -> str:
         return ""
 
 
-def get_dmi_full() -> dict:
-    """Pełne DMI: serial, UUID, chassis, rodzina, płyta. (Serial/UUID tylko dla root lub gdy kernel udostępnia.)"""
-    return {
+def get_dmi_full(redact: bool = False) -> dict:
+    """Pełne DMI: serial, UUID, chassis, rodzina, płyta. (Serial/UUID tylko dla root lub gdy kernel udostępnia.)
+    redact=True maskuje serial/UUID — do API, żeby nie wyciekały przy forwardzie portu."""
+    d = {
         "sys_vendor": read_dmi_file("/sys/class/dmi/id/sys_vendor"),
         "product_name": read_dmi_file("/sys/class/dmi/id/product_name"),
         "product_family": read_dmi_file("/sys/class/dmi/id/product_family"),
@@ -340,6 +341,11 @@ def get_dmi_full() -> dict:
         "bios_date": read_dmi_file("/sys/class/dmi/id/bios_date"),
         "ec_firmware": read_dmi_file("/sys/class/dmi/id/ec_firmware_release"),
     }
+    if redact:
+        for k in ("product_serial", "product_uuid", "board_serial"):
+            if d.get(k):
+                d[k] = "***"
+    return d
 
 
 def get_pci_devices() -> dict:
@@ -449,10 +455,11 @@ def get_audio_cards() -> list:
     return cards
 
 
-def get_inventory() -> dict:
-    """Pełna inwentaryzacja sprzętu — do CLI --full i dashboardu."""
+def get_inventory(redact: bool = False) -> dict:
+    """Pełna inwentaryzacja sprzętu — do CLI --full i dashboardu.
+    redact=True do API (maskuje serial/UUID)."""
     return {
-        "dmi": get_dmi_full(),
+        "dmi": get_dmi_full(redact=redact),
         "pci": get_pci_devices(),
         "disks": get_disks(),
         "ram": get_ram_sticks(),

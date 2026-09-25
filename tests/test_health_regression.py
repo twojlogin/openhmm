@@ -215,5 +215,26 @@ class TestHealthApi(unittest.TestCase):
                 proc.kill()
 
 
+class TestSerialRedaction(unittest.TestCase):
+    def test_redact_masks(self):
+        with mock.patch.object(sr, "read_dmi_file", return_value="SECRET123"):
+            d = sr.get_dmi_full(redact=True)
+        self.assertEqual(d["product_serial"], "***")
+        self.assertEqual(d["product_uuid"], "***")
+        self.assertEqual(d["board_serial"], "***")
+        # reszta danych zostaje (maskujemy tylko wrażliwe)
+        self.assertEqual(d["sys_vendor"], "SECRET123")
+
+    def test_no_redact_keeps(self):
+        with mock.patch.object(sr, "read_dmi_file", return_value="SECRET123"):
+            d = sr.get_dmi_full(redact=False)
+        self.assertEqual(d["product_serial"], "SECRET123")
+
+    def test_inventory_redact_passthrough(self):
+        with mock.patch.object(sr, "read_dmi_file", return_value="SECRET123"):
+            inv = sr.get_inventory(redact=True)
+        self.assertEqual(inv["dmi"]["product_serial"], "***")
+
+
 if __name__ == "__main__":
     unittest.main()
