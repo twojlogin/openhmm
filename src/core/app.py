@@ -52,8 +52,8 @@ def api_readme(lang: str):
             try:
                 with open(cand, encoding="utf-8") as f:
                     return JSONResponse({"lang": lang, "file": fname, "content": f.read()})
-            except Exception as e:
-                return JSONResponse({"error": str(e)})
+            except Exception:
+                return JSONResponse({"error": "Failed to read README"})
     return JSONResponse({"error": "README not found"})
 
 @app.get("/api/inventory")
