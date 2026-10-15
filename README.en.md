@@ -7,6 +7,7 @@ machine — temps, fan, battery, model + FRU part numbers and repair steps.
 No accounts, no telemetry, no cloud. Just Python + your hardware.
 
 **3 commands:**
+
 ```bash
 ./install.sh   # once: sets up venv
 ./status       # terminal: ✅ / ⚠️ / ❌
@@ -14,9 +15,11 @@ No accounts, no telemetry, no cloud. Just Python + your hardware.
 ```
 
 **One-line health (new):**
+
 ```bash
 ./status --check   # prints CHECK: ok/warn/crit, exit code 0/1/2 (script-friendly)
 ```
+
 `HEALTH` in plain `./status` also shows real battery `wear%` (today vs factory
 capacity). Temperature limits come from the kernel, not guesswork.
 Same verdict as JSON: `http://localhost:5066/api/health`.
