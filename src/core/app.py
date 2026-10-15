@@ -40,8 +40,8 @@ def api_fru(model: str):
         with open(p, encoding="utf-8") as f:
             db = json.load(f)
         return JSONResponse(db.get(model, {"error": "model not in db", "models": list(db.keys())}))
-    except Exception as e:
-        return JSONResponse({"error": str(e)})
+    except Exception:
+        return JSONResponse({"error": "Failed to load FRU database"})
 
 @app.get("/api/readme/{lang}")
 def api_readme(lang: str):
