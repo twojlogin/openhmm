@@ -36,4 +36,5 @@ jobs:
           python -m pytest -q
           --deselect tests/test_cli_api.py::TestAPI::test_inventory_gpu
           --deselect tests/test_sys_reader.py::TestSensors::test_coretemp_present
+          --deselect tests/test_sys_reader.py::TestSensors::test_sensors_not_empty_on_thinkpad
           --deselect tests/test_sys_reader.py::TestInventory::test_gpu_found
