@@ -29,5 +29,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      # 3 testy sprzetowe (GPU, coretemp/thinkpad) przechodza tylko na
+      # prawdziwym sprzecie - na runnerze CI ich pomijamy. Reszta: 141 testow.
       - name: Run tests
-        run: python -m pytest -q
+        run: >
+          python -m pytest -q
+          --deselect tests/test_cli_api.py::TestAPI::test_inventory_gpu
+          --deselect tests/test_sys_reader.py::TestSensors::test_coretemp_present
+          --deselect tests/test_sys_reader.py::TestInventory::test_gpu_found
